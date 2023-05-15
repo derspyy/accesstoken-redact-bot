@@ -1,13 +1,12 @@
-use ureq;
+use std::error::Error;
 use std::fs::File;
-use std::fs::create_dir;
 use std::path::PathBuf;
 use std::io::prelude::*;
 
-pub fn redact(url: &String, filename: &PathBuf) -> Result<(), ureq::Error> {
-    let content = ureq::get(&url).call()?.into_string()?;
-    let words = content.split_inclusive(" ");
-    let mut word_vec: Vec<&str>  = content.split_inclusive(" ").collect();
+pub fn redact(url: &str, filename: &PathBuf) -> Result<(), Box<dyn Error>> {
+    let content = ureq::get(url).call()?.into_string()?;
+    let words = content.split_inclusive(' ');
+    let mut word_vec: Vec<&str>  = content.split_inclusive(' ').collect();
     for word in words.enumerate() {
         if word.1 == "--accessToken " {
             let token = word.0 + 1;
@@ -18,7 +17,7 @@ pub fn redact(url: &String, filename: &PathBuf) -> Result<(), ureq::Error> {
     for word in word_vec {
         new_string.push_str(word);
     }
-    let mut file = File::create(filename).unwrap();
+    let mut file = File::create(filename)?;
     file.write_all(new_string.as_bytes())?;
     Ok(())
 }

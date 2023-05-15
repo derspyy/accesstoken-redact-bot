@@ -2,7 +2,7 @@
 
 mod file;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::fs::{remove_dir_all, create_dir_all};
 
 use serenity::{async_trait, utils};
@@ -24,7 +24,9 @@ impl EventHandler for Handler {
         for attachment in &msg.attachments {
             if attachment.filename.starts_with("hs_err_pid") {
                 let log_folder = PathBuf::from(format!("{}", msg.id.0));
-                create_dir_all(&log_folder).unwrap();
+                if let Err(why) = create_dir_all(&log_folder) {
+                    println!("Couldn't create file directory: {why}")
+                };
                 has_token = true;
                 let filename = log_folder.join(&attachment.filename);
                 if let Err(x) = file::redact(&attachment.url, &filename) {
@@ -33,8 +35,10 @@ impl EventHandler for Handler {
                 }
             }
         }
-        if has_token == true {
-            msg.delete(&ctx.http).await.unwrap();
+        if has_token {
+            if let Err(why) = msg.delete(&ctx.http).await {
+                println!("Couldn't delete message: {why}")
+            };
             let log_folder = PathBuf::from(format!("{}", msg.id.0));
             let files: Vec<PathBuf> = log_folder.read_dir().unwrap().map(|f| f.unwrap().path()).collect();
             let user_avatar = match msg.author.avatar {
@@ -46,7 +50,7 @@ impl EventHandler for Handler {
                 None => utils::Color::BLURPLE,
             };
             let file_refs: Vec<&PathBuf> = files.iter().collect();
-            msg.channel_id.send_files(&ctx.http, file_refs, |m| {
+            if let Err(why) = msg.channel_id.send_files(&ctx.http, file_refs, |m| {
                 m.embed(|e| {
                     e.description(&msg.content)
                         .color(user_color)
@@ -55,8 +59,12 @@ impl EventHandler for Handler {
                                 .name(&msg.author.name)  
                         })
                 })
-            }).await.unwrap();
-            remove_dir_all(log_folder).unwrap();
+            }).await {
+                println!("Couldn't send message: {why}")
+            };
+            if let Err(why) = remove_dir_all(log_folder) {
+                println!("Couldn't cleanup: {why}")
+            };
         }
     }
     
@@ -72,7 +80,7 @@ async fn main() {
         | GatewayIntents::MESSAGE_CONTENT;
 
     let mut client =
-        Client::builder(&token, intents).event_handler(Handler).await.expect("Err creating client");
+        Client::builder(token, intents).event_handler(Handler).await.expect("Err creating client");
 
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why);
