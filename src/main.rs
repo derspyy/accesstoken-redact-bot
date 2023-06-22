@@ -29,7 +29,7 @@ impl EventHandler for Handler {
                 };
                 has_token = true;
                 let filename = log_folder.join(&attachment.filename);
-                if let Err(x) = file::redact(&attachment.url, &filename) {
+                if let Err(x) = file::redact(&attachment.url, &filename).await {
                     println!("{x}");
                     return;
                 }
@@ -84,7 +84,8 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
-    let token = env!("CAFFEINE_DISCORD_BOT");
+    let token = std::env::var("CAFFEINE_DISCORD_BOT")
+        .expect("Please add your token to the 'CAFFEINE_DISCORD_BOT' environment variable");
     let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
 
     let mut client = Client::builder(token, intents)
