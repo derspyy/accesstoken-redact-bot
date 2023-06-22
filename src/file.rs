@@ -3,8 +3,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
-pub fn redact(url: &str, filename: &PathBuf) -> Result<(), Box<dyn Error>> {
-    let content = ureq::get(url).call()?.into_string()?;
+pub async fn redact(url: &str, filename: &PathBuf) -> Result<(), Box<dyn Error>> {
+    let content = reqwest::get(url).await?.text().await?;
     let mut new_string = String::new();
     let words: Vec<(usize, &str)> = content.split_inclusive(' ').enumerate().collect();
     for word in words.iter().skip(1) {
